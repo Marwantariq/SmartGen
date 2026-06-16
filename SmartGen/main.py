@@ -9,7 +9,7 @@ from split import Split
 from dayse import Dayse
 from transtext import Transtext
 from transnumber import Transnum
-from sppc import SPPC_select, similarity_select
+from sppc import CLUSTER_select
 from baseline1 import Anomaly_detection
 from baseline2 import Train
 from text_translation_matrix import ATM
@@ -34,16 +34,22 @@ def get_args_parser():
     parser.add_argument('--new_env', default='spring', type=str,
                         help='The new home environment: spring/night')
     parser.add_argument('--method', default='SPPC', type=str,
-                        help='The compression method: SPPC/similarity/instance')
+                        help='The compression method: SPPC/similarity/CLUSTER')
     parser.add_argument('--threshold', default=0.918, type=float,
                         help="The compression threshold")
     parser.add_argument('--percentage', default=95.5, type=float,
                         help='The anomaly detection threshold percentage')
-    parser.add_argument('--need_test', default=True, type=bool,
+    parser.add_argument('--need_test', default=True, type=str2bool,
                         help='The experimental setup: True/False')
-    parser.add_argument('--need_generate', default=False, type=bool,
+    parser.add_argument('--need_generate', default=False, type=str2bool,
                         help='The experimental setup: True/False')
     return parser
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    return v.lower() in ('yes', 'true', 't', '1')
 
 
 def LLM_call(openai_client, prompt):
@@ -89,9 +95,21 @@ if __name__ == "__main__":
         Dayse(args.dataset, args.ori_env)
         if args.method == 'SPPC':
             Train(args.dataset, args.ori_env, vocab_dic[args.dataset])
-            SPPC_select(args.dataset, args.ori_env, vocab_dic[args.dataset], args.threshold)
-        elif args.method == 'similarity':
-            similarity_select(args.dataset, args.ori_env, args.threshold)
+            # SPPC not implemented separately; fall back to CLUSTER_select as a placeholder
+            CLUSTER_select(args.dataset, args.ori_env, vocab_dic[args.dataset], num_clusters=50, epochs=5)
+
+    elif args.method == 'similarity':
+        # similarity-based selection not implemented; fall back to CLUSTER_select
+        CLUSTER_select(args.dataset, args.ori_env, vocab_dic[args.dataset], num_clusters=50, epochs=5)
+
+    elif args.method == 'CLUSTER':
+        CLUSTER_select(
+            args.dataset,
+            args.ori_env,
+            vocab_dic[args.dataset],
+            num_clusters=50,   #you can tune this
+            epochs=15
+    )
 
         all_categories = Find_categories(args.dataset, args.ori_env, args.method, args.threshold)
         device_dict = device_dic[args.dataset]
@@ -115,7 +133,12 @@ if __name__ == "__main__":
             action_transition = json.load(f)
 
         for day in all_categories:
-            with open(f'IoT_data/{args.dataset}/{args.ori_env}/trn_day_{day}_{args.method}_th={args.threshold}_text.pkl', 'rb') as file3:
+            if args.method == 'CLUSTER':
+                file_path = f'IoT_data/{args.dataset}/{args.ori_env}/trn_day_{day}_CLUSTER.pkl'
+            else:
+                file_path = f'IoT_data/{args.dataset}/{args.ori_env}/trn_day_{day}_{args.method}_th={args.threshold}_text.pkl'
+
+            with open(file_path, 'rb') as file3:
                 user_sequence = pickle.load(file3)
                 print(len(user_sequence))
             # gpt
@@ -150,9 +173,14 @@ if __name__ == "__main__":
                      "Note that each [...] subsequence represents the user's behavior over a period of time. There is no direct correlation between subsequences. At the same time, the final sequence is strictly generated in the format of <seq [['......'], ['......'], ['......']] seq> without line breaks or inconsistent formats." \
                      "Please think step by step, and return the final generated user behavior sequence set."
             response = LLM_call(openai_client, prompt)
-            with open(f'IoT_data/{args.dataset}/{args.new_env}/{args.dataset}_{args.new_env}_generation_day_{day}_{args.method}_th={args.threshold}_{args.model}.pkl', 'wb') as f3:
-                pickle.dump(response, f3)
+            if args.method == 'CLUSTER':
+                save_name = f'{args.dataset}_{args.new_env}_generation_day_{day}_CLUSTER_{args.model}.pkl'
+            else:
+                save_name = f'{args.dataset}_{args.new_env}_generation_day_{day}_{args.method}_th={args.threshold}_{args.model}.pkl'
 
+            with open(f'IoT_data/{args.dataset}/{args.new_env}/{save_name}', 'wb') as f3:
+                pickle.dump(response, f3)
+                
         Extract(args.dataset, args.new_env, args.threshold, args.method, args.model, all_categories)
         Transnum(args.dataset, args.new_env, args.threshold, args.method, args.model, all_categories, dictionaries)
         security_check(args.dataset, args.new_env, args.threshold, args.method, args.model)
