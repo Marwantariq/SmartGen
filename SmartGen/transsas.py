@@ -1,60 +1,50 @@
 import pickle
+import os
+
+# ---------- helper ----------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+
+os.makedirs(DATA_DIR, exist_ok=True)
 
 
 def Transsas(dataset, new_env, threshold, method, model):
     with open(
-            f'filter_data/{dataset}/{new_env}/{dataset}_{new_env}_generation_{method}_th={threshold}_{model}_seq_filter_true.pkl',
-            'rb') as file2:
-        sequence = pickle.load(file2)
-    actions = sequence
+        f'filter_data/{dataset}/{new_env}/{dataset}_{new_env}_generation_{method}_th={threshold}_{model}_seq_filter_true.pkl',
+        'rb'
+    ) as file2:
+        actions = pickle.load(file2)
 
-    with open(f'data/{dataset}_{new_env}_generation_{method}_th={threshold}_{model}_seq.txt', 'w') as file:
-        pass
+    out_path = os.path.join(
+        DATA_DIR,
+        f'{dataset}_{new_env}_generation_{method}_th={threshold}_{model}_seq.txt'
+    )
 
-    for t in range(len(actions)):
-
-        id_list = t
-        behavior_list = actions[t]
-
-        with open(f'data/{dataset}_{new_env}_generation_{method}_th={threshold}_{model}_seq.txt', 'a') as file:
-
-            for i in range(len(behavior_list)):
-                file.write(f"{t} {behavior_list[i]}\n")
+    with open(out_path, 'w') as file:
+        for t, behavior_list in enumerate(actions):
+            for b in behavior_list:
+                file.write(f"{t} {b}\n")
 
 
 def Transsas_baseline(dataset, ori_env):
     with open(f'IoT_data/{dataset}/{ori_env}/trn.pkl', 'rb') as file2:
-        sequence = pickle.load(file2)
-    actions = sequence
+        actions = pickle.load(file2)
 
-    with open(f'data/{dataset}_{ori_env}_trn.txt', 'w') as file:
-        pass
+    out_path = os.path.join(DATA_DIR, f'{dataset}_{ori_env}_trn.txt')
 
-    for t in range(len(actions)):
-
-        id_list = t
-        behavior_list = actions[t]
-
-        with open(f'data/{dataset}_{ori_env}_trn.txt', 'a') as file:
-
-            for i in range(len(behavior_list)):
-                file.write(f"{t} {behavior_list[i]}\n")
+    with open(out_path, 'w') as file:
+        for t, behavior_list in enumerate(actions):
+            for b in behavior_list:
+                file.write(f"{t} {b}\n")
 
 
 def Transsas_testdata(dataset, new_env):
     with open(f'IoT_data/{dataset}/{new_env}/split_test.pkl', 'rb') as file2:
-        sequence = pickle.load(file2)
-    actions = sequence
+        actions = pickle.load(file2)
 
-    with open(f'data/{dataset}_{new_env}_split_test.txt', 'w') as file:
-        pass
+    out_path = os.path.join(DATA_DIR, f'{dataset}_{new_env}_split_test.txt')
 
-    for t in range(len(actions)):
-
-        id_list = t
-        behavior_list = actions[t]
-
-        with open(f'data/{dataset}_{new_env}_split_test.txt', 'a') as file:
-
-            for i in range(len(behavior_list)):
-                file.write(f"{t} {behavior_list[i]}\n")
+    with open(out_path, 'w') as file:
+        for t, behavior_list in enumerate(actions):
+            for b in behavior_list:
+                file.write(f"{t} {b}\n")
